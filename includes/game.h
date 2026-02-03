@@ -35,15 +35,15 @@ typedef struct s_game
 	char *data;
 	int bpp;
 	int size_line;
-	int endiant;
+	int endian;
 	t_player player;
 } t_game;
 
 
 
 void init_player(t_player *player);
-int key_press(int keycode, t_player *player);
-int key_release(int keycode, t_player *player);
+int key_press(int keycode, void *param);
+int key_release(int keycode, void *param);
 void move_player(t_player *player);
 
 #endif

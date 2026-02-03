@@ -11,41 +11,64 @@ void put_pixel(int x,int y, int color, t_game *game)
 
 }
 
-void draw_square(int x, int y, int size, int color, t_game *game)
+
+void draw_square_filled(int x, int y, int size, int color, t_game *game)
 {
-	for (int i= 0; i < size; i++)
-		put_pixel(x + i,y, color, game);
-	for (int i = 0; i< size; i++)
-		put_pixel(x, y + i, color, game);
-	for (int i = 0; i < size; i++)
-		put_pixel(x + size, y + i, color, game);
-	for (int i = 0; i < size; i++)
-		put_pixel(x + i, y + size, color, game);
+    for (int i = 0; i < size; i++)       // 水平方向
+    {
+        for (int j = 0; j < size; j++)   // 垂直方向
+        {
+            put_pixel(x + i, y + j, color, game);
+        }
+    }
 }
+
 void init_game(t_game *game)
 {
+	
 	game->mlx = mlx_init();
-	game->win = mlx_new_window(game->mlx, WIDTH, HEIGHT, "Game");
-	game->img = mlx_new_image(game->img, WIDTH, HEIGHT);
+	if (!game->mlx)
+		exit(1);
+
+	game->win = mlx_new_window(game->mlx, WIDTH, HEIGHT, "Raycaster");
+	if (!game->win)
+		exit(1);
+	game->img = mlx_new_image(game->mlx, WIDTH, HEIGHT);
+	if (!game->img)
+		exit(1);
+	 // 获取像素数据指针
+    game->data = mlx_get_data_addr(game->img,
+                                   &game->bpp,
+                                   &game->size_line,
+                                   &game->endian);
+
+    // 初始化 player 坐标
+    game->player.x = WIDTH / 2;
+    game->player.y = HEIGHT /2;
+
+
+	
 }
 
 int draw_loop(t_game *game)
 {
-	t_player *player;
-
-	player = &game->player;
-	move_player(player);
-	draw_square(player->x, player->y, 5, 0x00FF00, game);
-	mlx_put_image_to_window(game->mlx, game->win, game->img,0, 0);
+    // 不清空画布
+    move_player(&game->player);
+    draw_square_filled(game->player.x, game->player.y, 5, 0x00FF00, game);
+    mlx_put_image_to_window(game->mlx, game->win, game->img, 0, 0);
+    return 0;
 }
+
+
 int main(void)
 {
 	t_game game;
 
 	init_game(&game);
-	mlx_hook(game.win, 2, 1L<<0, key_press, &game);
-	mlx_hook(game.win, 3, 1L<<1, key_release, &game);
+	mlx_hook(game.win, 2, 1L<<0, key_press, &game.player);
+	mlx_hook(game.win, 3, 1L<<1, key_release, &game.player);
 	mlx_loop_hook(game.mlx, draw_loop, &game);
-	
+	mlx_loop(game.mlx);   // ⭐⭐⭐ 关键
+
 	return (0);
 }
