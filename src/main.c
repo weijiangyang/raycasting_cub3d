@@ -10,11 +10,11 @@ char **get_map(void)
 	map[0] = "111111111111111";
 	map[1] = "100000000000001";
 	map[2] = "100000000000001";
-	map[3] = "100000000000001";
-	map[4] = "100000000000001";
+	map[3] = "100000100000001";
+	map[4] = "100000001000001";
 	map[5] = "100000000000001";
-	map[6] = "100000000000001";
-	map[7] = "100000000000001";
+	map[6] = "100001000000001";
+	map[7] = "100000010000001";
 	map[8] = "100000000000001";
 	map[9] = "111111111111111";
 	map[10] = NULL;
@@ -121,7 +121,7 @@ void draw_map(t_game *game)
 	}
 }
 
-void clear_img(t_game *game)
+int clear_img(t_game *game)
 {
 	int y;
 	y = 0;
@@ -135,74 +135,74 @@ void clear_img(t_game *game)
 		}
 		y++;
 	}
+	return 0;
 }
 
 bool touch(float px, float py, t_game *game)
 {
-    // 1. 基础越界检查
-    if (px < 0 || py < 0 || px >= WIDTH || py >= HEIGHT)
-        return (true);
+	// 1. 基础越界检查
+	if (px < 0 || py < 0 || px >= WIDTH || py >= HEIGHT)
+		return (true);
 
-    int x = (int)px / BLOCK;
-    int y = (int)py / BLOCK;
+	int x = (int)px / BLOCK;
+	int y = (int)py / BLOCK;
 
-    // 2. 检查地图数组边界（防止 map[1000][1000] 这种错误）
-    // 假设你的地图高度是 10，宽度是 15
-    if (y < 0 || y >= 10 || x < 0 || x >= 15)
-        return (true);
+	// 2. 检查地图数组边界（防止 map[1000][1000] 这种错误）
+	// 假设你的地图高度是 10，宽度是 15
+	if (y < 0 || y >= 10 || x < 0 || x >= 15)
+		return (true);
 
-    if (game->map[y][x] == '1')
-        return (true);
-    
-    return false;
+	if (game->map[y][x] == '1')
+		return (true);
+
+	return false;
 }
 
-/**
- * 游戏主循环 (Loop Hook)
- * MLX 会不断地调用这个函数来实现动画效果
- */
+// 绘制单条射线
+void draw_line(t_player *player, t_game *game, float ray_angle)
+{
+    float cos_angle = cos(ray_angle);
+    float sin_angle = sin(ray_angle);
+    float ray_x = player->x;
+    float ray_y = player->y;
+    
+    // 增加步进上限，防止死循环 (1000次步进通常足够覆盖屏幕)
+    int max_steps = 1000; 
+    while (!touch(ray_x, ray_y, game) && max_steps > 0)
+    {
+        put_pixel((int)ray_x, (int)ray_y, 0xFF0000, game);
+        ray_x += cos_angle;
+        ray_y += sin_angle;
+        max_steps--;
+    }
+}
+
 int draw_loop(t_game *game)
 {
-	t_player *player = &game->player;
-	// 注意：这里没有清空画布的步骤 (如用黑色重新填充一遍)
-	// 因此玩家移动时会在屏幕上留下“笔迹”，像画图板一样
+    t_player *player = &game->player;
 
-	// 1. 根据按键状态更新玩家坐标
-	clear_img(game);
-	move_player(&game->player);
+    clear_img(game);
+    move_player(player); // 确保 move_player 里也处理了旋转逻辑
+    draw_map(game);
 
-	// 2. 在玩家新位置画一个 5x5 的绿色正方形 (0x00FF00)
-	draw_square_filled(game->player.x, game->player.y, 5, 0x00FF00, game);
+    // 绘制玩家小方块
+    draw_square_filled(player->x, player->y, 5, 0x00FF00, game);
 
-	draw_map(game);
+    // 计算 FOV (视场角)
+    // PI / 3 = 60度
+    float fraction = (PI / 3) / WIDTH; 
+    float start_angle = player->angle - (PI / 6); // 玩家视角左侧 30 度开始
+    
+    int i = 0;
+    while (i < WIDTH)
+    {
+        draw_line(player, game, start_angle);
+        start_angle += fraction;
+        i++;
+    }
 
-	float ray_x = player->x;
-	float ray_y = player->y;
-	float cos_angle = cos(player->angle);
-	float sin_angle = sin(player->angle);
-
-	while(!touch(ray_x, ray_y, game))
-	{
-		put_pixel(ray_x, ray_y, 0xFF0000, game);
-		ray_x += cos_angle;
-		ray_y += sin_angle;
-	}
-
-	// 3. 将绘制好的图像缓冲区“推”到窗口上显示出来
-	mlx_put_image_to_window(game->mlx, game->win, game->img, 0, 0);
-
-	return 0;
-}
-
-/**
- * 窗口关闭回调
- * 当点击窗口红叉时触发
- */
-int close_window(void *param)
-{
-	(void)param;
-	exit(0);
-	return 0;
+    mlx_put_image_to_window(game->mlx, game->win, game->img, 0, 0);
+    return 0;
 }
 
 int main(void)
@@ -222,7 +222,7 @@ int main(void)
 	// 注册主渲染循环
 	mlx_loop_hook(game.mlx, draw_loop, &game);
 	// 监听窗口关闭按钮 (DestroyNotify - 17)
-	mlx_hook(game.win, 17, 0, close_window, NULL);
+	mlx_hook(game.win, 17, 0, clear_img, &game);
 
 	// 3. 启动 MLX 事件监听循环
 	// 这个函数会阻塞在这里，直到程序退出
