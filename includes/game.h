@@ -53,6 +53,6 @@ typedef struct s_game
 void init_player(t_player *player);
 int key_press(int keycode, void *param);
 int key_release(int keycode, void *param);
-void move_player(t_player *player);
+void move_player(t_game *game);
 
 #endif

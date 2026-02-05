@@ -182,7 +182,7 @@ int draw_loop(t_game *game)
     t_player *player = &game->player;
 
     clear_img(game);
-    move_player(player); // 确保 move_player 里也处理了旋转逻辑
+    move_player(game); // 确保 move_player 里也处理了旋转逻辑
     draw_map(game);
 
     // 绘制玩家小方块

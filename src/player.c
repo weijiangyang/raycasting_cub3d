@@ -12,13 +12,13 @@
  */
 void init_player(t_player *player)
 {
-    player->x = WIDTH / 2;
-    player->y = HEIGHT / 2;
-	player->angle= PI / 2;
-    player->key_up = false;
-    player->key_down = false;
-    player->key_left = false;
-    player->key_right = false;
+	player->x = WIDTH / 2;
+	player->y = HEIGHT / 2;
+	player->angle = PI / 2;
+	player->key_up = false;
+	player->key_down = false;
+	player->key_left = false;
+	player->key_right = false;
 
 	player->left_rotate = false;
 	player->right_rotate = false;
@@ -31,25 +31,25 @@ void init_player(t_player *player)
  */
 int key_press(int keycode, void *param)
 {
-    t_player *player = (t_player *)param;
+	t_player *player = (t_player *)param;
 
-    if (keycode == W)
-        player->key_up = true;
-    else if (keycode == S)
-        player->key_down = true;
-    else if (keycode == A)
-        player->key_left = true;
-    else if (keycode == D)
-        player->key_right = true;
-    // 如果需要按 ESC 退出，也可以加在这里
+	if (keycode == W)
+		player->key_up = true;
+	else if (keycode == S)
+		player->key_down = true;
+	else if (keycode == A)
+		player->key_left = true;
+	else if (keycode == D)
+		player->key_right = true;
+	// 如果需要按 ESC 退出，也可以加在这里
 	else if (keycode == LEFT)
 		player->left_rotate = true;
 	else if (keycode == RIGHT)
 		player->right_rotate = true;
-    else if (keycode == ESC)
-        exit(0);
+	else if (keycode == ESC)
+		exit(0);
 
-    return 0;
+	return 0;
 }
 
 /**
@@ -58,17 +58,38 @@ int key_press(int keycode, void *param)
  */
 int key_release(int keycode, void *param)
 {
-    t_player *player = (t_player *)param;
+	t_player *player = (t_player *)param;
 
-    if (keycode == W) player->key_up = false;
-    if (keycode == S) player->key_down = false;
-    if (keycode == A) player->key_left = false;
-    if (keycode == D) player->key_right = false;
-    // 补上旋转键的释放
-    if (keycode == LEFT) player->left_rotate = false;
-    if (keycode == RIGHT) player->right_rotate = false;
+	if (keycode == W)
+		player->key_up = false;
+	if (keycode == S)
+		player->key_down = false;
+	if (keycode == A)
+		player->key_left = false;
+	if (keycode == D)
+		player->key_right = false;
+	// 补上旋转键的释放
+	if (keycode == LEFT)
+		player->left_rotate = false;
+	if (keycode == RIGHT)
+		player->right_rotate = false;
 
-    return 0;
+	return 0;
+}
+
+int is_wall(t_game *game, float x, float y)
+{
+	int map_x;
+	int map_y;
+
+	map_x = (int)(x / BLOCK);
+	map_y = (int)(y / BLOCK);
+
+	// 防止数组越界
+	if (map_x < 0 || map_y < 0 || map_y >= 10 || map_x >= 15)
+		return 1;
+
+	return (game->map[map_y][map_x] == '1');
 }
 
 /**
@@ -76,10 +97,15 @@ int key_release(int keycode, void *param)
  * 作用：由 mlx_loop_hook 每一帧调用。
  * 只要标志位为 true，玩家就会在这一帧移动 speed 个像素。
  */
-void move_player(t_player *player)
+void move_player(t_game *game)
 {
-    int speed = 5; // 每一帧移动的像素距离
+	t_player *player;
+
+	player = &game ->player;
+	int speed = 5; // 每一帧移动的像素距离
 	float angle_speed = 0.1;
+	float next_x = player->x;
+	float next_y = player->y;
 	float cos_angle = cos(player->angle);
 	float sin_angle = sin(player->angle);
 
@@ -87,39 +113,39 @@ void move_player(t_player *player)
 		player->angle -= angle_speed;
 	if (player->right_rotate)
 		player->angle += angle_speed;
-	if (player->angle  > 2 * PI)
+	if (player->angle > 2 * PI)
 		player->angle = 0;
 	if (player->angle < 0)
 		player->angle = 2 * PI;
 
-
-    // 向上移动：注意 y 轴上方是 0
-    if (player->key_up )
-    {
-		player->x -= sin_angle * speed;
-		player->y -= cos_angle * speed;
-	}
-    
-    // 向下移动：需要减去玩家方块自身的大小s（假设为 5）防止出界
-    if (player->key_down)
-    {
-		player->x += sin_angle * speed;
-		player->y += cos_angle * speed;
-	}
-    
-    // 向左移动
-    if (player->key_left)
-    {
-		player->x -= cos_angle * speed;
-		player->y -= sin_angle * speed;
-	}
-    
-    // 向右移动
-    if (player->key_right)
+	// === 先算下一步 ===
+	if (player->key_up)
 	{
-			player->x += cos_angle * speed;
-			player->y += sin_angle* speed;
+		next_x -= sin_angle * speed;
+		next_y -= cos_angle * speed;
 	}
+	if (player->key_down)
+	{
+		next_x += sin_angle * speed;
+		next_y += cos_angle * speed;
+	}
+	if (player->key_left)
+	{
+		next_x -= cos_angle * speed;
+		next_y -= sin_angle * speed;
+	}
+	if (player->key_right)
+	{
+		next_x += cos_angle * speed;
+		next_y += sin_angle * speed;
+	}
+
+	// === 碰撞检测 ===
+	if (!is_wall(game, next_x, player->y))
+		player->x = next_x;
+
+	if (!is_wall(game, player->x, next_y))
+		player->y = next_y;
 }
 
 /*
@@ -142,16 +168,14 @@ void move_player(t_player *player)
 */
 /*int draw_loop(t_game *game)
 {
-    // 1. 用黑色清空整个图像缓冲区
-    // bzero(game->data, WIDTH * HEIGHT * (game->bpp / 8)); 
-    
-    // 2. 计算新位置
-    move_player(&game->player);
-    
-    // 3. 重新绘制
-    draw_square_filled(game->player.x, game->player.y, 5, 0x00FF00, game);
-    mlx_put_image_to_window(game->mlx, game->win, game->img, 0, 0);
-    return 0;
+	// 1. 用黑色清空整个图像缓冲区
+	// bzero(game->data, WIDTH * HEIGHT * (game->bpp / 8));
+
+	// 2. 计算新位置
+	move_player(&game->player);
+
+	// 3. 重新绘制
+	draw_square_filled(game->player.x, game->player.y, 5, 0x00FF00, game);
+	mlx_put_image_to_window(game->mlx, game->win, game->img, 0, 0);
+	return 0;
 }*/
-
-
